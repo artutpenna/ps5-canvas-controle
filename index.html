@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PS5 — Observação segura de Canvas</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:950px;margin:0 auto;padding:28px 22px;background:#101b30;color:#f7f9fc;font-size:20px;line-height:1.45}h1{font-size:32px;margin-bottom:8px}h2{font-size:25px}.info{background:#202f49;border-left:5px solid #6cbaf8;padding:18px;margin:18px 0}.controls{margin:24px 0}button{font-size:21px;font-weight:bold;border:0;padding:16px 26px;background:#2b82d9;color:white;border-radius:8px;cursor:pointer}button:focus{outline:3px solid white}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#07111f;padding:20px;border-radius:8px;font-size:17px}label{display:block;margin-bottom:8px}input{font-size:22px;padding:10px;max-width:100%;width:240px}.ok{color:#aef0be}.warn{color:#ffe2a0}small{color:#b8c6da}
+</style>
+</head>
+<body>
+<h1>Laboratório PS5 — Controle do Canvas</h1>
+<p>Coleta de observações simples do navegador. Não testa reentrância, não faz alocações intensivas nem tenta explorar falhas.</p>
+<div class="info">Este arquivo não envia informações pela internet, não instala nada e não acessa memória fora das APIs normais. Os resultados aparecem apenas nesta tela.</div>
+<div class="controls"><label for="fw">Firmware informado pelo usuário (não verificado automaticamente)</label><input id="fw" value="14.20" autocomplete="off"><p><button id="run">Executar 5 testes de controle</button></p></div>
+<div id="summary" aria-live="polite">Nenhum teste executado.</div>
+<h2>Resultado completo (JSON)</h2>
+<pre id="output">Clique no botão acima. Se estiver no PS5, fotografe esta tela ou tire uma captura; não é necessário enviar dados para servidores.</pre>
+<small>O campo User-Agent pode ser modificado pelo software e não autentica o hardware. Um resultado sem falhas não prova que o PS5 esteja protegido contra outras vulnerabilidades.</small>
+<script>
+(function(){
+ function record(id,description,expected,fn){var x={id:id,description:description,expected:expected};try{x.observed=fn();x.status=JSON.stringify(x.observed)===JSON.stringify(expected)?'ok':'diferente'}catch(e){x.observed=String(e&&e.name||'Erro')+': '+String(e&&e.message||e);x.status='erro'}return x}
+ function makeCanvas(){return document.createElement('canvas')}
+ function start(){var started=Date.now(),tests=[];
+ tests.push(record('C01','Criar contexto Canvas 2D','CanvasRenderingContext2D',function(){var c=makeCanvas(),ctx=c.getContext('2d');return ctx&&ctx.constructor&&ctx.constructor.name||'null'}));
+ tests.push(record('C02','Duas chamadas getContext(2d) no mesmo Canvas',true,function(){var c=makeCanvas();return c.getContext('2d')===c.getContext('2d')}));
+ tests.push(record('C03','Contexto incompatível após 2D retorna null',true,function(){var c=makeCanvas();c.getContext('2d');return c.getContext('bitmaprenderer')===null}));
+ tests.push(record('C04','Dois Canvas distintos têm contextos distintos',true,function(){return makeCanvas().getContext('2d')!==makeCanvas().getContext('2d')}));
+ tests.push(record('C05','Desenhar e ler pixel RGBA',[32,96,160,255],function(){var c=makeCanvas();c.width=1;c.height=1;var x=c.getContext('2d');x.fillStyle='rgba(32,96,160,1)';x.fillRect(0,0,1,1);return Array.prototype.slice.call(x.getImageData(0,0,1,1).data)}));
+ var passed=tests.filter(function(t){return t.status==='ok'}).length;
+ var report={schema:'ps5-canvas-controle-v1',generatedAtUTC:new Date().toISOString(),environment:{userAgent:navigator.userAgent,protocol:location.protocol,firmwareDeclarado:document.getElementById('fw').value,firmwareVerificadoAutomaticamente:false},durationMs:Date.now()-started,tests:tests,limitations:['Testes de API normais. Não executa reentrância ou testes de memória.','User-Agent e firmware digitado não autenticam o console.','Sem telemetria ou envio de dados pela rede.']};
+ document.getElementById('summary').innerHTML='<p class="'+(passed===5?'ok':'warn')+'"><strong>'+passed+' de '+tests.length+' testes com o resultado esperado.</strong></p>';
+ document.getElementById('output').textContent=JSON.stringify(report,null,2);
+ }
+ document.getElementById('run').addEventListener('click',start);
+})();
+</script>
+</body>
+</html>
